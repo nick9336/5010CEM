@@ -1,15 +1,20 @@
 <?php
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
 
+require 'phpmailer/src/Exception.php';
+require 'phpmailer/src/PHPMailer.php';
+require 'phpmailer/src/SMTP.php';
 
 include 'components/connect.php';
 
 session_start();
 
-if(isset($_SESSION['user_id'])){
+if (isset($_SESSION['user_id'])) {
    $user_id = $_SESSION['user_id'];
-}else{
+} else {
    $user_id = '';
-   header('location:home.php');
 };
 
 ?>
@@ -29,6 +34,24 @@ if(isset($_SESSION['user_id'])){
    <link rel="stylesheet" href="css/style.css">
 
 </head>
+
+<style>
+input[type=submit] {
+    background: orange; 
+    border: 2px solid orange;
+    color: white;
+    padding: 20px 50px 20px 50px;
+}
+
+input[type=submit]:hover {
+    background: white; 
+    color: orange;
+    border: 2px solid orange;
+    border-color: orange;
+    padding: 20px 50px 20px 50px;
+}
+</style>
+
 <body>
    
 <!-- header section starts  -->
@@ -48,29 +71,64 @@ if(isset($_SESSION['user_id'])){
 
    <?php
         if ($user_id == '') {
-            echo '<p class="empty">please login to make a reservation</p>';
-        } else 
+            echo '<p class="empty">Please login to make a reservation</p>';
+        } else {
             if (isset($_POST['submit'])) {
-                $name = isset($_POST['name']) ? $_POST['name'] : '';
+
+                $message[] = 'Reservation made!';
+
+                $user_query = $conn->prepare("SELECT name FROM users WHERE id = ?");
+                $user_query->execute([$user_id]);
+                $user = $user_query->fetch(PDO::FETCH_ASSOC);
+                $username = $user['name'];
+
                 $email = isset($_POST['email']) ? $_POST['email'] : '';
                 $place_on = isset($_POST['place_on']) ? $_POST['place_on'] : '';
                 $time_place = isset($_POST['time_place']) ? $_POST['time_place'] : '';
                 $pax = isset($_POST['pax']) ? $_POST['pax'] : '';
-                $table_no = isset($_POST['table_no']) ? $_POST['table_no'] : '';
-                $contact = isset($_POST['contact_no']) ? $_POST['contact_no'] : '';
-        
-                if (!empty($name) && !empty($email) && !empty($place_on) && !empty($time_place) && !empty($pax) && !empty($table_no) && !empty($contact)) {
-                    
-                    $insert_res = $conn->prepare("INSERT INTO reservations (user_id, name, place_on, reservation_status, time_place, pax, table_no, contact_no, email)
-                        VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)");
-                    $insert_res->execute([$user_id, $name, $place_on, $time_place, $pax, $table_no, $contact, $email]);
+                $contact_no = isset($_POST['contact_no']) ? $_POST['contact_no'] : '';
+    
+                if (!empty($username) && !empty($email) && !empty($place_on) && !empty($time_place) && !empty($pax) && !empty($contact_no)) {
 
-                } else {
-                    echo '<p class="empty">Please fill in all the required fields.</p>';
-                }
-          
+                    $insert_res = $conn->prepare("INSERT INTO reservations (user_id, name, placed_on, time_placed, pax, contact_no, email, reservation_status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $insert_res->execute([$user_id, $username , $place_on, $time_place, $pax, $contact_no, $email, 'Pending']);
+                    
+
+                $mail = new PHPMailer();
+        
+                $mail->isSMTP();
+                $mail->Host = 'smtp.gmail.com';
+                $mail->SMTPAuth = true;
+                $mail->Username = 'jackleeleow@gmail.com';
+                $mail->Password = 'piwmdkmynleqejvn';
+                $mail->SMTPSecure = 'ssl';
+                $mail->Port = 465;
             
-            ?>
+                $mail->setFrom('jackleeleow@gmail.com');
+            
+                $mail->addAddress($_POST["email"]);
+            
+                $mail->isHTML(true);
+            
+                $mail->Subject = 'The Savoury Spoon Reservation Made!';
+                $mail->Body =  'Dear '.$username.', <br/><br/>
+                Your Reservation Date: '.$place_on.'<br/>
+                Your Time of Reservation : '.$time_place.'<br/>
+                Your Email : '.$email.'<br/>
+                Your Contact Number : '.$contact_no .'<br/>
+                Number of Pax : '.$pax.'<br/><br/>
+                Thank You for Your Reservation !';
+            
+                $mail->send();
+                
+                
+                }
+            }
+        }
+
+     ?>
+            
 
             <div class="box">
                 <h2>Reservation Form</h2>
@@ -83,11 +141,6 @@ if(isset($_SESSION['user_id'])){
                     <div class="form-group">
                         <p>Time of Reservation :
                         <input type="time" id="time_place" name="time_place" required></p>
-                        </div>
-
-                    <div class="form-group">
-                        <p>Name :
-                        <input type="text" id="name" name="name" required></p>
                         </div>
                         
                     <div class="form-group">
@@ -105,28 +158,16 @@ if(isset($_SESSION['user_id'])){
                         <input type="text" id="pax" name="pax" required></p>
                     </div>
                     
-                    <div class="form-group">
-                        <p>Table No :
-                        <input type="text" id="table_no" name="table_no" required></p>
-                    </div>
                     <center>
-                        <input type="submit" value="Submit Reservation"id="submit"name="submit" style="background:orange; color:white; padding:20px 50px 20px 50px" >
+                        <input type="submit" value="Submit Reservation"id="submit"name="submit">
                     </center>
       
                 </form>
             </div>
-        <?php
-      }
-   ?>
 
    </div>
 
 </section>
-
-
-
-
-
 
 
 
